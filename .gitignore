@@ -1,0 +1,25 @@
+# Godot 4 generated files
+.godot/
+.import/
+*.translation
+
+# Export credentials and local build output
+export_credentials.cfg
+build/
+dist/
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and crash reports
+*.log
+mono_crash.*.json

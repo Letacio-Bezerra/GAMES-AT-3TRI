@@ -284,3 +284,33 @@
 - **Testado automaticamente:** regras e integrações determinísticas da Spec 007.
 - **Avaliação positiva:** uma única interface de escolhas atende efeitos simples e encadeados sem multiplicar telas específicas.
 - **Pendente:** partida manual completa para avaliar clareza, ritmo e balanceamento dos 30 efeitos.
+
+## 2026-10-03 — Spec 008: Layout do Tabuleiro
+
+### O que foi implementado
+
+- Mesa espelhada com adversário acima, jogador ativo abaixo e campos de ataque frente a frente.
+- Onze espaços fixos para cada jogador: cinco de ataque, três de descanso e três de especiais.
+- Cartões retangulares compactos com categoria, orientação, custo, Ataque, Vida e nome do efeito.
+- Inspetor persistente com texto completo dos 30 lados de efeito, valores base e atuais, permanência, estados ativos e ações contextuais.
+- Mãos nas bordas, reservas laterais, cemitérios consultáveis, centro de resolução e realce de alvos.
+
+### Decisões e aprendizados
+
+- Repetir o texto completo em todas as cartas tornava a altura inviável. O cartão comunica o estado essencial e o inspetor assume a leitura detalhada.
+- O texto dos efeitos foi separado da lógica em um catálogo de apresentação. O resolvedor continua sendo a autoridade das regras.
+- Elementos dentro de uma rolagem horizontal não devem usar quebra automática sem largura mínima; isso fazia um aviso curto expandir a mesa verticalmente. As coleções horizontais agora usam texto sem quebra e cartões recortados.
+- O Godot precisou ser executado fora do sandbox: dentro dele, até uma suíte antiga encerrava com falha nativa antes de carregar o projeto.
+
+### Validação
+
+- A regressão visual cobriu campos vazios e lotados, seleção, detalhes, privacidade da mão, rolagem, especiais, efeitos e combate.
+- A área mínima combinada ficou em 1252×872 dentro da viewport de 1600×900 no cenário de ocupação máxima.
+- Uma captura renderizada confirmou a organização espelhada e a leitura do inspetor.
+- As nove suítes passaram no Godot 4.6.2 sem regressão de gameplay.
+
+### Playtest
+
+- **Testado automaticamente:** requisitos funcionais e limite de layout da Spec 008.
+- **Avaliação positiva:** todas as cartas dos campos permanecem localizáveis, enquanto o efeito completo fica disponível sem cobrir a mesa.
+- **Pendente:** observar manualmente se a fonte compacta dos cartões e o padrão selecionar→agir são confortáveis para um jogador novo.

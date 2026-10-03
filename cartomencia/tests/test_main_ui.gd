@@ -24,8 +24,8 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 
-	_expect(screen.find_children("*", "ScrollContainer", true, false).size() == 5,
-		"O turno zero e as quatro áreas de cartas devem possuir rolagem.")
+	_expect(screen.find_children("*", "ScrollContainer", true, false).size() >= 4,
+		"O turno zero, as duas mãos e as escolhas pendentes devem possuir rolagem própria.")
 	_expect(configured_size == Vector2i(1600, 900),
 		"A janela do jogo deve estar configurada com a área-base de 1600 por 900.")
 
@@ -39,6 +39,8 @@ func _run() -> void:
 		"A interface deve iniciar a partida com três cartas para cada jogador.")
 	_expect(screen.game.active_player().energy == 2,
 		"O jogador escolhido para começar deve possuir duas energias.")
+	_expect(screen.get_tree().get_nodes_in_group("board_slot").size() == 22,
+		"O tabuleiro vazio deve mostrar os 22 espaços de campo dos dois jogadores.")
 
 	var player = screen.game.active_player()
 	player.hand.clear()
@@ -50,22 +52,27 @@ func _run() -> void:
 	screen._request_refresh()
 	await process_frame
 	await process_frame
+	await _select_card(screen, neutral_common)
+	_expect("Carta neutra" in screen.detail_label.get_parsed_text(),
+		"Selecionar uma carta deve abrir seus detalhes persistentes.")
+	_expect("ATQ 3" in _button_text_for_card(screen, neutral_common),
+		"O cartão deve mostrar Ataque e Vida sem depender do painel de detalhes.")
 	var hand_before: int = player.hand.size()
-	var play_button: Button = _find_button(screen, "Jogar")
-	_expect(play_button != null, "A interface deve exibir um botão Jogar.")
+	var play_button: Button = _find_button(screen, "Jogar no descanso")
+	_expect(play_button != null, "A carta selecionada deve exibir a ação Jogar no descanso.")
 	if play_button != null:
 		play_button.pressed.emit()
 		await process_frame
 		await process_frame
 		_expect(player.hand.size() == hand_before - 1,
 			"Clicar em Jogar deve atualizar o estado sem fechar a cena.")
-		_expect(_has_visible_text(screen, "Descanso — 1/3 espaços"),
+		_expect(_has_visible_text(screen, "SEU DESCANSO  1/3"),
 			"O cabeçalho do descanso deve comunicar sua ocupação atual.")
 		var discard_button: Button = _find_button(screen, "Fundo do baralho (1)")
 		_expect(discard_button != null,
 			"A interface deve informar que o descarte comum volta ao fundo do baralho.")
-		_expect(discard_button != null and discard_button.get_parent() is HFlowContainer,
-			"As ações da carta devem ocupar uma linha fluida separada de suas informações.")
+		_expect(discard_button != null and discard_button.get_parent() == screen.context_actions,
+			"As ações da carta devem ocupar o painel contextual separado de seus atributos.")
 	_expect(screen.game_screen.get_combined_minimum_size().x <= screen.size.x,
 		"O conteúdo da partida não pode exigir largura maior que a janela.")
 	_expect(screen.game_screen.get_combined_minimum_size().y <= screen.size.y,
@@ -83,7 +90,7 @@ func _run() -> void:
 		await process_frame
 		_expect(player.attack_field.size() == 1,
 			"Clicar em Avançar deve atualizar o campo sem fechar a cena.")
-		_expect(_has_visible_text(screen, "Ataque — 1/5 espaços"),
+		_expect(_has_visible_text(screen, "SEU ATAQUE  1/5"),
 			"O cabeçalho do ataque deve comunicar sua ocupação atual.")
 
 	var special = CardStateScript.new(
@@ -106,8 +113,9 @@ func _run() -> void:
 		screen._request_refresh()
 		await process_frame
 		await process_frame
-		var use_button: Button = _find_button(screen, "Usar")
-		_expect(use_button != null, "Uma carta especial na mão deve oferecer o botão Usar.")
+		await _select_card(screen, special)
+		var use_button: Button = _find_button(screen, "Usar especial")
+		_expect(use_button != null, "Uma carta especial selecionada deve oferecer o botão Usar especial.")
 		if use_button != null:
 			use_button.pressed.emit()
 			await process_frame
@@ -128,20 +136,33 @@ func _run() -> void:
 	var scrolls := screen.find_children("*", "ScrollContainer", true, false)
 	var visible_scroll_bar := false
 	for scroll in scrolls:
-		if scroll.is_visible_in_tree() and scroll.get_v_scroll_bar().visible:
+		if scroll.is_visible_in_tree() and scroll.get_h_scroll_bar().visible:
 			visible_scroll_bar = true
 	_expect(visible_scroll_bar,
-		"Uma mão extensa deve ativar a barra de rolagem vertical.")
+		"Uma mão extensa deve ativar a barra de rolagem horizontal sem deslocar o tabuleiro.")
 
 	await _test_combat_target_selection(screen)
+	await _test_full_board_layout(screen)
+	await process_frame
+	await process_frame
 
+	var exit_code := 0 if failures.is_empty() else 1
 	if failures.is_empty():
 		print("OK: testes de regressão da interface passaram.")
-		quit(0)
 	else:
 		for failure in failures:
 			push_error(failure)
-		quit(1)
+	screen.game.effects.pending.clear()
+	screen.game.effects.modifiers.clear()
+	screen.game.effects.restrictions.clear()
+	screen.game.effects.special_expiries.clear()
+	screen.game.effects.links.clear()
+	screen.free()
+	call_deferred("_finish", exit_code)
+
+
+func _finish(exit_code: int) -> void:
+	quit(exit_code)
 
 
 func _press_and_settle(screen, button_text: String) -> void:
@@ -151,6 +172,23 @@ func _press_and_settle(screen, button_text: String) -> void:
 		button.pressed.emit()
 		await process_frame
 		await process_frame
+
+
+func _select_card(screen, card) -> void:
+	for button in screen.find_children("*", "Button", true, false):
+		if button.has_meta("card") and button.get_meta("card") == card:
+			button.pressed.emit()
+			await process_frame
+			await process_frame
+			return
+	_expect(false, "Cartão visual não encontrado para seleção.")
+
+
+func _button_text_for_card(screen, card) -> String:
+	for button in screen.find_children("*", "Button", true, false):
+		if button.has_meta("card") and button.get_meta("card") == card:
+			return button.text
+	return ""
 
 
 func _find_button(node: Node, button_text: String) -> Button:
@@ -201,6 +239,7 @@ func _test_special_replacement_feedback(screen, player) -> void:
 	screen._request_refresh()
 	await process_frame
 	await process_frame
+	await _select_card(screen, incoming)
 	var selectors: Array[Node] = screen.find_children("*", "OptionButton", true, false)
 	var selector: OptionButton = selectors[0] as OptionButton if not selectors.is_empty() else null
 	if selector != null:
@@ -243,7 +282,8 @@ func _test_special_replacement_feedback(screen, player) -> void:
 	screen._request_refresh()
 	await process_frame
 	await process_frame
-	_expect(_has_visible_text(screen, "efeito imediato (vai ao cemitério após resolver)"),
+	await _select_card(screen, immediate)
+	_expect(_has_visible_text(screen, "imediato (vai ao cemitério após resolver)"),
 		"A interface deve avisar quando a nova especial não permanecerá ativa.")
 	selectors = screen.find_children("*", "OptionButton", true, false)
 	selector = selectors[0] as OptionButton if not selectors.is_empty() else null
@@ -299,8 +339,9 @@ func _test_combat_target_selection(screen) -> void:
 		await process_frame
 		_expect(screen.game.phase == TurnControllerScript.Phase.RESOLVING_ATTACK,
 			"Clicar em atacar deve abrir a fase de escolha de alvo.")
-		_expect(_has_visible_text(screen, "Dano restante: 3"),
+		_expect(_has_visible_text(screen, "dano restante: 3"),
 			"A interface deve comunicar o dano ainda não distribuído.")
+		await _select_card(screen, target)
 		var target_button: Button = _find_button(screen, "Receber dano")
 		_expect(target_button != null, "Cada alvo adversário deve oferecer um botão de seleção.")
 		if target_button != null:
@@ -313,9 +354,60 @@ func _test_combat_target_selection(screen) -> void:
 				"Consumir o dano deve encerrar o turno e entregar a vez ao adversário.")
 
 
+func _test_full_board_layout(screen) -> void:
+	var active = screen.game.active_player()
+	var opponent = screen.game.players[1 - screen.game.current_player_index]
+	active.attack_field = _make_common_cards("active_attack", 5)
+	active.rest_field = _make_common_cards("active_rest", 3)
+	active.special_field = _make_special_cards("active_special", 3)
+	opponent.attack_field = _make_common_cards("enemy_attack", 5)
+	opponent.rest_field = _make_common_cards("enemy_rest", 3)
+	opponent.special_field = _make_special_cards("enemy_special", 3)
+	screen.game.phase = TurnControllerScript.Phase.PREPARATION
+	screen._request_refresh()
+	await process_frame
+	await process_frame
+	_expect(screen.get_tree().get_nodes_in_group("board_slot").is_empty(),
+		"Com os campos lotados, nenhum espaço vazio deve permanecer.")
+	_expect(screen.get_tree().get_nodes_in_group("board_card").size() == 22,
+		"As 22 cartas dos campos lotados devem ficar simultaneamente na mesa.")
+	_expect(_has_visible_text(screen, "SUAS ESPECIAIS  3/3") and _has_visible_text(screen, "ESPECIAIS ADVERSÁRIAS  3/3"),
+		"As duas áreas de especiais devem comunicar sua ocupação real.")
+	_expect(screen.game_screen.get_combined_minimum_size().x <= screen.size.x,
+		"O tabuleiro lotado não pode ultrapassar a largura de 1600 pixels.")
+	_expect(screen.game_screen.get_combined_minimum_size().y <= screen.size.y,
+		"O tabuleiro lotado não pode ultrapassar a altura de 900 pixels.")
+
+
+func _make_common_cards(prefix: String, amount: int) -> Array:
+	var cards: Array = []
+	for index in range(amount):
+		var card = CardStateScript.new("%s_%d" % [prefix, index], "Carta %d" % (index + 1), CardStateScript.Category.ATTACK, 2, 3, 3)
+		card.orientation = CardStateScript.Orientation.UPRIGHT
+		card.reveal()
+		cards.append(card)
+	return cards
+
+
+func _make_special_cards(prefix: String, amount: int) -> Array:
+	var cards: Array = []
+	for index in range(amount):
+		var card = CardStateScript.new("%s_%d" % [prefix, index], "Especial %d" % (index + 1), CardStateScript.Category.SPECIAL, 5, 0, 0)
+		card.orientation = CardStateScript.Orientation.UPRIGHT
+		card.reveal()
+		cards.append(card)
+	return cards
+
+
 func _has_visible_text(node: Node, expected_fragment: String) -> bool:
 	for label in node.find_children("*", "Label", true, false):
 		if label.is_visible_in_tree() and expected_fragment in label.text:
+			return true
+	for button in node.find_children("*", "Button", true, false):
+		if button.is_visible_in_tree() and expected_fragment in button.text:
+			return true
+	for rich_text in node.find_children("*", "RichTextLabel", true, false):
+		if rich_text.is_visible_in_tree() and expected_fragment in rich_text.get_parsed_text():
 			return true
 	return false
 

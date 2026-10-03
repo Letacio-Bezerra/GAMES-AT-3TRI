@@ -44,3 +44,9 @@ Responsável por somar o ataque do campo, distribuir dano entre alvos, persistir
 
 Também impede inatividade prolongada por meio de aviso, movimentação automática e penalidade quando o campo de ataque permanece vazio.
 
+## Interface da partida
+
+Responsável por apresentar os dois jogadores em uma mesa espelhada, renderizar os espaços dos campos, preservar a privacidade das mãos, exibir atributos e efeitos e devolver ao controlador as seleções e ações do jogador.
+
+Observa **fluxo de turnos**, **baralhos e cartas**, **campos**, **efeitos especiais** e **combate**, mas não altera diretamente seus estados. Um catálogo de apresentação fornece o texto legível dos efeitos sem executar suas regras.
+

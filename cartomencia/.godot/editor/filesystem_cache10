@@ -1,8 +1,8 @@
 63f7b34db8d8cdea90c76aacccf841ec
-::res://::1791061153
+::res://::1791386525
 main.gd::GDScript::7785918241640407499::1791056496::0::1::::<>Control<><>0<>0<><>::
 main.tscn::PackedScene::-1::1790177723::0::1::::<><><>0<>0<><>::res://main.gd
-::res://scripts/::1791055625
+::res://scripts/::1791061154
 card_effect_resolver.gd::GDScript::6250609170490469142::1791035895::0::1::::CardEffectResolver<>RefCounted<><>0<>0<><>::
 card_presentation.gd::GDScript::7126718037363347148::1791055625::0::1::::CardPresentation<>RefCounted<><>0<>0<><>::
 card_state.gd::GDScript::6172616735844329387::1790973022::0::1::::CardState<>RefCounted<><>0<>0<><>::
